@@ -5,6 +5,8 @@
 
 # Iran Town Hall — Discord Bot
 
+![Project Banner](https://cdn.discordapp.com/banners/989545909937397760/b8be515a916cc50a27490ab518978677.webp?size=1024)
+
 A modular Discord bot with moderation, leveling, giveaways, ticket modals, anti-spam, and anti-link protection.
 
 ---
