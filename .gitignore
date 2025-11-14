@@ -35,7 +35,10 @@ wheels/
 Thumbs.db
 
 # Project specific
+.gitkeep
+# Keep the db/ folder in the repo by allowing the placeholder, but ignore actual DB files
 db/
+!db/.gitkeep
 *.db
 *.db-journal
 .env
