@@ -113,32 +113,4 @@ The bot creates SQLite DB files in `db/` automatically:
 
 ---
 
-## Reorganization Summary
-
-I reorganized the project for maintainability and clarity:
-
-- Centralized configuration to `config/settings.json`.
-- Moved commands into modular cogs under `commands/` (moderation, ticket, leveling, antispam, giveaway, utility).
-- Added `utils/` for helper functions and DB initialization.
-- Added `events/` for member join/leave handlers and other event listeners.
-- Implemented a modal-based ticket creation UI and transcript archiving.
-
-If you need any adjustments to the structure (move files, rename modules), tell me which files to change.
-
----
-
-## Troubleshooting & Tips
-
-- `ModuleNotFoundError: No module named 'discord'` → run:
-
-```powershell
-pip install -r requirements.txt
-```
-
-- `Token is invalid` → verify the `bot.token` value in `config/settings.json`.
-- Commands not appearing? Wait ~30s and type `/` in Discord to refresh the slash commands list.
-- Permissions errors? Ensure the bot role is above managed roles and has required permissions.
-
----
-
 Made with ❤️ by not_notron for the Iran Town Hall community
