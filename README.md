@@ -146,4 +146,4 @@ pip install -r requirements.txt
 
 ---
 
-Made with ❤️ for the Iran Town Hall community
+Made with ❤️ by not_notron for the Iran Town Hall community
