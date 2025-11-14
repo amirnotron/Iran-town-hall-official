@@ -141,11 +141,4 @@ pip install -r requirements.txt
 
 ---
 
-## Security & Best Practices
-
-- Never commit `config/settings.json` with the real token to public repos.
-- Use role-based access controls for moderation features.
-
----
-
 Made with ❤️ by not_notron for the Iran Town Hall community
