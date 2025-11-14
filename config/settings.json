@@ -1,0 +1,91 @@
+{
+  "bot": {
+    "token": "YOUR_BOT_TOKEN_HERE",
+    "command_prefix": "*:",
+    "intents": [
+      "default",
+      "members",
+      "message_content",
+      "voice_states",
+      "guilds"
+    ]
+  },
+  "guilds": {
+    "main_guild_id": 995747597513916446
+  },
+  "channels": {
+    "welcome_channel_id": 1391466788109287574,
+    "level_up_channel_id": 1418729658928857119,
+    "transcript_channel_id": 1221876324679811182,
+    "ticket_channel_id": 1390017025773928641
+  },
+  "categories": {
+    "ticket_category_id": 1390016963459420291
+  },
+  "roles": {
+    "member_role_id": 1113415383475564584,
+    "moderator_role_ids": [
+      1389291587481370695,
+      1389291588768895187,
+      1394024520163266672,
+      1389291592044515399
+    ]
+  },
+  "features": {
+    "welcome_message": {
+      "enabled": true,
+      "gif_url": "https://cdn.discordapp.com/attachments/1312723163964248137/1417971238239993886/IMG_8930.jpg?ex=68cc6c1f&is=68cb1a9f&hm=2e852e621b41dac377f9a74965ab72b47abce8d8ce9567ce99f7b2ad2ec19e17&"
+    },
+    "leveling": {
+      "enabled": true,
+      "xp_per_message_min": 15,
+      "xp_per_message_max": 25,
+      "xp_per_voice_min": 5,
+      "xp_per_voice_max": 10,
+      "message_cooldown_seconds": 60,
+      "voice_cooldown_seconds": 60
+    },
+    "antispam": {
+      "enabled": true,
+      "cooldown_threshold": 5,
+      "cooldown_window": 15,
+      "violation_threshold": 4,
+      "violation_window": 60,
+      "default_punishment": "timeout"
+    },
+    "antilink": {
+      "enabled": true,
+      "delete_message": true,
+      "timeout_minutes": 5,
+      "whitelist_role_ids": [],
+      "blocked_domains": [
+        "discord.gg",
+        "discordapp.com",
+        "discord.com/invite"
+      ]
+    },
+    "giveaway": {
+      "enabled": true,
+      "reaction_emoji": "🎉"
+    },
+    "ticket": {
+      "enabled": true,
+      "support_form_fields": [
+        "چه درخواستی دارید ؟",
+        "اسمتون چیه ؟",
+        "چند سالته ؟"
+      ]
+    }
+  },
+  "database": {
+    "warnings_db": "db/warnings.db",
+    "levels_db": "db/levels.db",
+    "giveaway_db": "db/giveaway.db",
+    "antispam_db": "db/antispam.db",
+    "tickets_db": "db/tickets.db"
+  },
+  "messages": {
+    "welcome_title": "WELCOME TO IRAN TOWN HALL",
+    "rules_title": "RULES | قوانین"
+  }
+}

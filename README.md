@@ -1,0 +1,149 @@
+<!--
+  Consolidated README.md
+  Merged content from SETUP.md, QUICK_START.md, and RESTRUCTURE_SUMMARY.md.
+-->
+
+# Iran Town Hall — Discord Bot
+
+A modular Discord bot with moderation, leveling, giveaways, ticket modals, anti-spam, and anti-link protection.
+
+---
+
+## Quick Start
+
+1. Install Python 3.8+ and the dependencies:
+
+```powershell
+pip install -r requirements.txt
+```
+
+2. Edit `config/settings.json` and set your `bot.token`, channel IDs, and role IDs.
+
+3. Run the bot:
+
+```powershell
+python bot_main.py
+```
+
+Tip: wait ~30 seconds after the bot starts for slash commands to appear in Discord.
+
+---
+
+## Project Structure
+
+```
+iran-town-hall/
+├── config/                    # Configuration files
+│   └── settings.json          # Main configuration file (edit this)
+├── commands/                  # Command cogs (moderation, ticket, leveling, etc.)
+├── utils/                     # Helper utilities (config, db, helpers)
+├── events/                    # Event handlers (on_member_join, etc.)
+├── db/                        # SQLite databases (auto-created)
+├── bot_main.py                # Main entrypoint — run this
+└── README.md                  # This file (consolidated documentation)
+```
+
+---
+
+## Features
+
+- Moderation: `/ban`, `/kick`, `/timeout`, `/warn`
+- Leveling: message + voice XP, `/level` command
+- Tickets: modal-based ticket form with Product, Name, Date, and Description; transcript archiving
+- Anti-Spam: global spam detection and configurable punishments
+- Anti-Link: detects and removes Discord invites & blocked domains; deletes message and times out offender (configurable)
+- Giveaways: `/gstart`, invite tracking, winner selection
+- Utilities: `/ping`, `/userinfo`, `/serverinfo`, `/clear`
+
+---
+
+## Configuration
+
+Edit `config/settings.json` to customize the bot. Example snippets:
+
+```json
+{
+  "bot": { "token": "YOUR_BOT_TOKEN_HERE", "command_prefix": "!" },
+  "channels": {
+    "level_up_channel_id": 1234567890,
+    "ticket_channel_id": 1234567890,
+    "transcript_channel_id": 1234567890
+  },
+  "roles": {
+    "member_role_id": 1234567890,
+    "moderator_role_ids": [1234567890]
+  },
+  "features": {
+    "leveling": { "enabled": true },
+    "antispam": { "enabled": true },
+    "antilink": { "enabled": true, "delete_message": true, "timeout_minutes": 5 }
+  }
+}
+```
+
+Make sure to replace placeholder IDs and the token before running the bot.
+
+---
+
+## Running & Common Commands
+
+- Start the bot: `python bot_main.py`
+- Setup ticket panel: `/setup_tickets` in the configured ticket channel
+- Enable anti-spam: `/antispam enable`
+
+Command highlights:
+
+- Moderation: `/ban`, `/kick`, `/timeout`, `/warn`
+- Leveling: `/level`
+- Tickets: `/setup_tickets` → users fill a modal to open tickets
+- Giveaways: `/gstart duration:<1d|7d> winners:1 required_invites:0 prize:"text"`
+
+---
+
+## Databases
+
+The bot creates SQLite DB files in `db/` automatically:
+- `levels.db` — user XP and levels
+- `warnings.db` — moderation warnings
+- `antispam.db` — anti-spam records
+- `giveaway.db` — giveaway data
+- `tickets.db` — ticket records
+
+---
+
+## Reorganization Summary
+
+I reorganized the project for maintainability and clarity:
+
+- Centralized configuration to `config/settings.json`.
+- Moved commands into modular cogs under `commands/` (moderation, ticket, leveling, antispam, giveaway, utility).
+- Added `utils/` for helper functions and DB initialization.
+- Added `events/` for member join/leave handlers and other event listeners.
+- Implemented a modal-based ticket creation UI and transcript archiving.
+
+If you need any adjustments to the structure (move files, rename modules), tell me which files to change.
+
+---
+
+## Troubleshooting & Tips
+
+- `ModuleNotFoundError: No module named 'discord'` → run:
+
+```powershell
+pip install -r requirements.txt
+```
+
+- `Token is invalid` → verify the `bot.token` value in `config/settings.json`.
+- Commands not appearing? Wait ~30s and type `/` in Discord to refresh the slash commands list.
+- Permissions errors? Ensure the bot role is above managed roles and has required permissions.
+
+---
+
+## Security & Best Practices
+
+- Never commit `config/settings.json` with the real token to public repos.
+- Use role-based access controls for moderation features.
+
+---
+
+Made with ❤️ for the Iran Town Hall community
