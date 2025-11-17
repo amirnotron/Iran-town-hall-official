@@ -5,7 +5,7 @@
 
 # Iran Town Hall — Discord Bot
 
-![Project Banner](https://cdn.discordapp.com/banners/989545909937397760/b8be515a916cc50a27490ab518978677.webp?size=1024)
+![Project Banner](https://cdn.discordapp.com/attachments/1236751646147608618/1438998225909584097/b8be515a916cc50a27490ab518978677.webp?ex=6918eb08&is=69179988&hm=fe4e226c452ba670c4b287789c2a7dc4615a3566661818aa4a0ce1eb2307a9f8&)
 
 A modular Discord bot with moderation, leveling, giveaways, ticket modals, anti-spam, and anti-link protection.
 
@@ -110,41 +110,6 @@ The bot creates SQLite DB files in `db/` automatically:
 - `antispam.db` — anti-spam records
 - `giveaway.db` — giveaway data
 - `tickets.db` — ticket records
-
----
-
-## Reorganization Summary
-
-I reorganized the project for maintainability and clarity:
-
-- Centralized configuration to `config/settings.json`.
-- Moved commands into modular cogs under `commands/` (moderation, ticket, leveling, antispam, giveaway, utility).
-- Added `utils/` for helper functions and DB initialization.
-- Added `events/` for member join/leave handlers and other event listeners.
-- Implemented a modal-based ticket creation UI and transcript archiving.
-
-If you need any adjustments to the structure (move files, rename modules), tell me which files to change.
-
----
-
-## Troubleshooting & Tips
-
-- `ModuleNotFoundError: No module named 'discord'` → run:
-
-```powershell
-pip install -r requirements.txt
-```
-
-- `Token is invalid` → verify the `bot.token` value in `config/settings.json`.
-- Commands not appearing? Wait ~30s and type `/` in Discord to refresh the slash commands list.
-- Permissions errors? Ensure the bot role is above managed roles and has required permissions.
-
----
-
-## Security & Best Practices
-
-- Never commit `config/settings.json` with the real token to public repos.
-- Use role-based access controls for moderation features.
 
 ---
 
