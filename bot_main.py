@@ -8,6 +8,12 @@ import asyncio
 import json
 from utils import load_config, init_databases
 
+# ANSI Color codes for Iran flag colors
+COLOR_GREEN = '\033[92m'    # Green
+COLOR_WHITE = '\033[97m'    # White
+COLOR_RED = '\033[91m'      # Red
+COLOR_RESET = '\033[0m'     # Reset color
+
 # Load configuration
 CONFIG = load_config()
 
@@ -29,16 +35,16 @@ bot = commands.Bot(
 @bot.event
 async def on_ready():
     """Bot ready event"""
-    print("=" * 50)
-    print(f"✓ Bot logged in as: {bot.user.name} ({bot.user.id})")
-    print("=" * 50)
+    print(COLOR_RED + "=" * 50 + COLOR_RESET)
+    print(COLOR_GREEN + f"✓ Bot logged in as: {bot.user.name} ({bot.user.id})" + COLOR_RESET)
+    print(COLOR_RED + "=" * 50 + COLOR_RESET)
     
     # Sync commands
     try:
         synced = await bot.tree.sync()
-        print(f"✓ Synced {len(synced)} command(s)")
+        print(COLOR_GREEN + f"✓ Synced {len(synced)} command(s)" + COLOR_RESET)
     except Exception as e:
-        print(f"✗ Failed to sync commands: {e}")
+        print(COLOR_RED + f"✗ Failed to sync commands: {e}" + COLOR_RESET)
     
     # Set bot presence
     await bot.change_presence(
@@ -49,19 +55,19 @@ async def on_ready():
         )
     )
     
-    print("✓ Bot is ready!\n")
+    print(COLOR_GREEN + "✓ Bot is ready!" + COLOR_RESET + "\n")
 
 
 @bot.event
 async def on_guild_join(guild: discord.Guild):
     """Handle bot joining a guild"""
-    print(f"✓ Joined guild: {guild.name} (ID: {guild.id})")
+    print(COLOR_GREEN + f"✓ Joined guild: {guild.name} (ID: {guild.id})" + COLOR_RESET)
 
 
 @bot.event
 async def on_guild_remove(guild: discord.Guild):
     """Handle bot leaving a guild"""
-    print(f"✗ Left guild: {guild.name} (ID: {guild.id})")
+    print(COLOR_RED + f"✗ Left guild: {guild.name} (ID: {guild.id})" + COLOR_RESET)
 
 
 @bot.event
@@ -87,11 +93,11 @@ async def on_command_error(ctx, error):
 
 async def load_commands():
     """Load all commands from commands folder"""
-    print("\nLoading commands...")
+    print(COLOR_WHITE + "\nLoading commands..." + COLOR_RESET)
     
     commands_dir = "commands"
     if not os.path.exists(commands_dir):
-        print(f"✗ Commands folder not found: {commands_dir}")
+        print(COLOR_RED + f"✗ Commands folder not found: {commands_dir}" + COLOR_RESET)
         return
     
     loaded_count = 0
@@ -99,21 +105,21 @@ async def load_commands():
         if filename.endswith('.py') and not filename.startswith('_'):
             try:
                 await bot.load_extension(f'commands.{filename[:-3]}')
-                print(f"  ✓ Loaded: {filename[:-3]}")
+                print(COLOR_GREEN + f"  ✓ Loaded: {filename[:-3]}" + COLOR_RESET)
                 loaded_count += 1
             except Exception as e:
-                print(f"  ✗ Failed to load {filename}: {e}")
+                print(COLOR_RED + f"  ✗ Failed to load {filename}: {e}" + COLOR_RESET)
     
-    print(f"✓ Successfully loaded {loaded_count} command module(s)\n")
+    print(COLOR_GREEN + f"✓ Successfully loaded {loaded_count} command module(s)" + COLOR_RESET + "\n")
 
 
 async def load_events():
     """Load all events from events folder"""
-    print("Loading events...")
+    print(COLOR_WHITE + "Loading events..." + COLOR_RESET)
     
     events_dir = "events"
     if not os.path.exists(events_dir):
-        print(f"✗ Events folder not found: {events_dir}")
+        print(COLOR_RED + f"✗ Events folder not found: {events_dir}" + COLOR_RESET)
         return
     
     loaded_count = 0
@@ -121,25 +127,25 @@ async def load_events():
         if filename.endswith('.py') and not filename.startswith('_'):
             try:
                 await bot.load_extension(f'events.{filename[:-3]}')
-                print(f"  ✓ Loaded: {filename[:-3]}")
+                print(COLOR_GREEN + f"  ✓ Loaded: {filename[:-3]}" + COLOR_RESET)
                 loaded_count += 1
             except Exception as e:
-                print(f"  ✗ Failed to load {filename}: {e}")
+                print(COLOR_RED + f"  ✗ Failed to load {filename}: {e}" + COLOR_RESET)
     
-    print(f"✓ Successfully loaded {loaded_count} event module(s)\n")
+    print(COLOR_GREEN + f"✓ Successfully loaded {loaded_count} event module(s)" + COLOR_RESET + "\n")
 
 
 async def main():
     """Main function"""
-    print("=" * 50)
-    print("🤖 Iran Town Hall Discord Bot")
-    print("=" * 50 + "\n")
+    print(COLOR_RED + "=" * 50 + COLOR_RESET)
+    print(COLOR_WHITE + "🤖 Iran Town Hall Discord Bot" + COLOR_RESET)
+    print(COLOR_RED + "=" * 50 + COLOR_RESET + "\n")
     
     # Initialize databases
-    print("Initializing databases...")
+    print(COLOR_WHITE + "Initializing databases..." + COLOR_RESET)
     db_paths = CONFIG.get('database', {})
     await init_databases(db_paths)
-    print("✓ Databases initialized\n")
+    print(COLOR_GREEN + "✓ Databases initialized" + COLOR_RESET + "\n")
     
     # Load all commands
     await load_commands()
@@ -151,22 +157,22 @@ async def main():
     try:
         await bot.start(CONFIG['bot']['token'])
     except discord.errors.LoginFailure:
-        print("✗ Failed to login. Please check your bot token in config/settings.json")
+        print(COLOR_RED + "✗ Failed to login. Please check your bot token in config/settings.json" + COLOR_RESET)
     except KeyboardInterrupt:
-        print("\n✗ Bot shutdown by user")
+        print(COLOR_RED + "\n✗ Bot shutdown by user" + COLOR_RESET)
         await bot.close()
     except Exception as e:
-        print(f"✗ Error running bot: {e}")
+        print(COLOR_RED + f"✗ Error running bot: {e}" + COLOR_RESET)
         await bot.close()
 
 
 if __name__ == "__main__":
     # Check for token
     if CONFIG['bot']['token'] == "YOUR_BOT_TOKEN_HERE":
-        print("✗ ERROR: Bot token not configured!")
-        print("Please open config/settings.json and add your bot token.")
+        print(COLOR_RED + "✗ ERROR: Bot token not configured!" + COLOR_RESET)
+        print(COLOR_RED + "Please open config/settings.json and add your bot token." + COLOR_RESET)
     else:
         try:
             asyncio.run(main())
         except KeyboardInterrupt:
-            print("\n✗ Bot stopped")
+            print(COLOR_RED + "\n✗ Bot stopped" + COLOR_RESET)
