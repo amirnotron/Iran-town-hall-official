@@ -293,7 +293,56 @@ class TicketSystem(commands.Cog):
     
     @commands.Cog.listener()
     async def on_ready(self):
+        """Auto-setup ticket system on bot startup"""
         print("✓ Ticket system loaded successfully")
+        
+        # Automatically post ticket setup message on bot startup
+        try:
+            config = get_config()
+            ticket_channel_id = config['channels']['ticket_channel_id']
+            
+            if not ticket_channel_id:
+                print("⚠️ Ticket channel ID not configured")
+                return
+            
+            ticket_channel = self.bot.get_channel(ticket_channel_id)
+            if not ticket_channel:
+                print(f"⚠️ Ticket channel not found: {ticket_channel_id}")
+                return
+            
+            # Check if setup message already exists
+            async for message in ticket_channel.history(limit=5):
+                if message.author == self.bot.user and message.embeds:
+                    embed_title = message.embeds[0].title
+                    if "Support Ticket System" in embed_title:
+                        # Setup message already exists
+                        return
+            
+            # Post the setup message if it doesn't exist
+            embed = discord.Embed(
+                title="📋 Support Ticket System",
+                description="Click the button below to create a support ticket. Our team will assist you as soon as possible.",
+                color=discord.Color.blue()
+            )
+            embed.add_field(
+                name="📝 What is a Ticket?",
+                value="A ticket is a private channel where you can discuss your issue with our support team.",
+                inline=False
+            )
+            embed.add_field(
+                name="⏱️ Response Time",
+                value="Our team typically responds within 1-2 hours during business hours.",
+                inline=False
+            )
+            
+            await ticket_channel.send(
+                embed=embed,
+                view=TicketCreateView()
+            )
+            print("✓ Ticket system setup message posted automatically")
+            
+        except Exception as e:
+            print(f"⚠️ Error auto-posting ticket setup: {e}")
     
     @app_commands.command(name="setup_tickets", description="Setup the ticket system in current channel")
     @app_commands.default_permissions(administrator=True)
