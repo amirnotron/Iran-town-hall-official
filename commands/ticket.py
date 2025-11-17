@@ -1,445 +1,294 @@
 """
-Enhanced Ticket System with Modal Form
+Complete Ticket System - Clean Implementation
+Supports ticket creation via button, closing via command
 """
 import discord
 from discord import app_commands
 from discord.ext import commands
 from datetime import datetime
-import os
 import json
-from utils import CONFIG
 
 
-# Load configuration
 def get_config():
+    """Load configuration from settings.json"""
     with open("config/settings.json", "r") as f:
         return json.load(f)
 
 
 class TicketFormModal(discord.ui.Modal, title="Create a Support Ticket"):
-    """Modal form for ticket creation"""
-    
-    product = discord.ui.TextInput(
-        label="Enter your name",
-        placeholder="Enter your name to continue",
-        required=True,
-        min_length=3,
-        max_length=100
-    )
+    """Modal form for creating support tickets"""
     
     name = discord.ui.TextInput(
-        label="Enter your age",
-        placeholder="Enter your age (or leave blank)",
-        required=False,
+        label="Your Name",
+        placeholder="Enter your full name",
+        required=True,
+        min_length=2,
         max_length=100
     )
     
-    date = discord.ui.TextInput(
-        label="Today's Date (optional)",
-        placeholder="Enter the date (or leave blank)...",
-        required=False,
-        max_length=50
+    subject = discord.ui.TextInput(
+        label="Subject",
+        placeholder="What is this ticket about?",
+        required=True,
+        min_length=5,
+        max_length=100
     )
     
     description = discord.ui.TextInput(
-        label="Issue Description",
+        label="Description",
         placeholder="Describe your issue in detail...",
         required=True,
         min_length=10,
-        max_length=1000,
+        max_length=2000,
         style=discord.TextStyle.paragraph
     )
     
     async def on_submit(self, interaction: discord.Interaction):
-        """Process the submitted form"""
-        config = get_config()
-        guild = interaction.guild
-        category_id = config['categories']['ticket_category_id']
-        moderator_role_ids = config['roles']['moderator_role_ids']
-        
-        category = discord.utils.get(guild.categories, id=category_id)
-        if not category:
-            await interaction.response.send_message(
-                "❌ Ticket category not found. Please contact an administrator.",
-                ephemeral=True
-            )
-            return
-        
-        # Check if user already has a ticket
-        channel_name = f"ticket-{self.product.value.lower().replace(' ', '-')}-{interaction.user.name.lower()}"
-        channel_name = "".join(c for c in channel_name if c.isalnum() or c == '-')[:100]
-        
-        for channel in category.channels:
-            if channel.name == channel_name:
-                await interaction.response.send_message(
-                    f"You already have an open ticket for this product: {channel.mention}",
-                    ephemeral=True
-                )
-                return
-        
-        # Create permission overwrites
-        overwrites = {
-            guild.default_role: discord.PermissionOverwrite(view_channel=False),
-            interaction.user: discord.PermissionOverwrite(
-                view_channel=True,
-                send_messages=True,
-                read_message_history=True,
-                attach_files=True,
-                embed_links=True
-            ),
-            guild.me: discord.PermissionOverwrite(
-                view_channel=True,
-                send_messages=True,
-                read_message_history=True
-            )
-        }
-        
-        # Add moderator roles
-        for role_id in moderator_role_ids:
-            moderator_role = guild.get_role(role_id)
-            if moderator_role:
-                overwrites[moderator_role] = discord.PermissionOverwrite(
-                    view_channel=True,
-                    send_messages=True,
-                    read_message_history=True
-                )
+        """Handle modal submission"""
+        await interaction.response.defer(ephemeral=True)
         
         try:
-            # Create ticket channel
+            config = get_config()
+            guild = interaction.guild
+            
+            # Get category ID from config
+            category_id = config.get('categories', {}).get('ticket_category_id')
+            if not category_id:
+                await interaction.followup.send("❌ Ticket category not configured", ephemeral=True)
+                return
+            
+            category = guild.get_channel(category_id)
+            if not category or not isinstance(category, discord.CategoryChannel):
+                await interaction.followup.send("❌ Ticket category not found", ephemeral=True)
+                return
+            
+            # Create channel name
+            channel_name = f"ticket-{interaction.user.name.lower()}-{datetime.now().timestamp():.0f}"
+            channel_name = "".join(c if c.isalnum() or c == '-' else '' for c in channel_name)[:100]
+            
+            # Get moderator roles
+            moderator_role_ids = config.get('roles', {}).get('moderator_role_ids', [])
+            
+            # Create permission overwrites
+            overwrites = {
+                guild.default_role: discord.PermissionOverwrite(view_channel=False),
+                interaction.user: discord.PermissionOverwrite(
+                    view_channel=True,
+                    send_messages=True,
+                    read_message_history=True,
+                    attach_files=True,
+                    embed_links=True
+                ),
+                guild.me: discord.PermissionOverwrite(
+                    view_channel=True,
+                    send_messages=True,
+                    read_message_history=True,
+                    manage_channels=True,
+                    manage_messages=True
+                )
+            }
+            
+            # Add moderator permissions
+            for role_id in moderator_role_ids:
+                role = guild.get_role(role_id)
+                if role:
+                    overwrites[role] = discord.PermissionOverwrite(
+                        view_channel=True,
+                        send_messages=True,
+                        read_message_history=True
+                    )
+            
+            # Create the ticket channel
             ticket_channel = await guild.create_text_channel(
                 name=channel_name,
                 category=category,
                 overwrites=overwrites,
-                reason=f"Ticket for {interaction.user} - {self.product.value}"
+                reason=f"Ticket created by {interaction.user}"
             )
             
-            # Create ticket info embed
+            print(f"[TICKET] Created ticket channel: {ticket_channel.name}")
+            
+            # Create embed with ticket info
             embed = discord.Embed(
-                title=f"📋 Support Ticket - {self.product.value}",
-                description="Thank you for creating a ticket. Our team will assist you shortly.",
-                color=discord.Color.blue()
+                title="📋 Support Ticket Created",
+                description=f"Thank you for contacting support, {interaction.user.mention}!",
+                color=discord.Color.blue(),
+                timestamp=datetime.now()
             )
-            embed.add_field(name="Product/Category", value=self.product.value, inline=False)
-            embed.add_field(name="Created by", value=interaction.user.mention, inline=True)
-            embed.add_field(name="Created at", value=discord.utils.format_dt(datetime.now(), "F"), inline=True)
+            embed.add_field(name="Ticket Creator", value=interaction.user.mention, inline=False)
+            embed.add_field(name="Subject", value=self.subject.value, inline=False)
+            embed.add_field(name="Description", value=self.description.value, inline=False)
+            embed.add_field(name="Your Name", value=self.name.value, inline=False)
+            embed.set_footer(text="Our team will respond shortly")
             
-            if self.name.value:
-                embed.add_field(name="Your Name", value=self.name.value, inline=False)
+            # Send ticket info to the channel
+            await ticket_channel.send(embed=embed)
             
-            if self.date.value:
-                embed.add_field(name="Date", value=self.date.value, inline=False)
-            
-            embed.add_field(name="Issue Description", value=self.description.value, inline=False)
-            
-            # Add moderator mentions
+            # Mention moderators
             moderator_mentions = []
             for role_id in moderator_role_ids:
-                moderator_role = guild.get_role(role_id)
-                if moderator_role:
-                    moderator_mentions.append(moderator_role.mention)
+                role = guild.get_role(role_id)
+                if role:
+                    moderator_mentions.append(role.mention)
             
-            mention_text = " ".join(moderator_mentions) if moderator_mentions else ""
+            if moderator_mentions:
+                await ticket_channel.send(f"{' '.join(moderator_mentions)} - New ticket from {interaction.user.mention}")
             
-            await ticket_channel.send(
-                f"{mention_text}\n{interaction.user.mention} has created a ticket. Please review the details below:",
-                embed=embed,
-                view=TicketCloseView()
+            # Send close command instruction
+            info_embed = discord.Embed(
+                title="📌 How to Close This Ticket",
+                description="To close this ticket, use the command:\n\n`/close`",
+                color=discord.Color.greyple()
             )
+            await ticket_channel.send(embed=info_embed)
             
             # Confirm to user
-            await interaction.response.send_message(
-                f"✅ Your ticket has been created: {ticket_channel.mention}\n\n"
-                f"**Product:** {self.product.value}\n"
-                f"**Description:** {self.description.value[:100]}...",
+            await interaction.followup.send(
+                f"✅ Ticket created: {ticket_channel.mention}",
                 ephemeral=True
             )
             
+            print(f"[TICKET] Ticket setup complete for {interaction.user}")
+            
         except discord.Forbidden:
-            await interaction.response.send_message(
-                "❌ I don't have permission to create channels. Please contact an administrator.",
-                ephemeral=True
-            )
+            await interaction.followup.send("❌ I don't have permission to create channels", ephemeral=True)
         except Exception as e:
-            await interaction.response.send_message(
-                f"❌ An error occurred: {e}",
-                ephemeral=True
-            )
+            print(f"[TICKET] Error creating ticket: {e}")
+            await interaction.followup.send(f"❌ Error: {str(e)[:100]}", ephemeral=True)
 
 
-class TicketCreateView(discord.ui.View):
-    """View for ticket creation button"""
+class CreateTicketButton(discord.ui.View):
+    """View with create ticket button"""
     
     def __init__(self):
         super().__init__(timeout=None)
     
     @discord.ui.button(
-        label="Create a Ticket",
+        label="Create Ticket",
         style=discord.ButtonStyle.blurple,
-        custom_id="ticket_create_button",
-        emoji="📩"
+        custom_id="create_ticket_btn",
+        emoji="📝"
     )
-    async def create_ticket_button(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Show the ticket creation modal"""
+    async def create_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Show ticket creation modal"""
         await interaction.response.send_modal(TicketFormModal())
 
 
-class TicketCloseView(discord.ui.View):
-    """View for closing ticket"""
-    
-    def __init__(self):
-        super().__init__(timeout=None)
-    
-    @discord.ui.button(
-        label="Close Ticket",
-        style=discord.ButtonStyle.red,
-        custom_id="ticket_close_button",
-        emoji="🔒"
-    )
-    async def close_ticket(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Close the ticket channel"""
-        config = get_config()
-        moderator_role_ids = config['roles']['moderator_role_ids']
-        
-        # Check if user has permission to close
-        is_ticket_creator = interaction.user == interaction.channel.owner
-        is_moderator = any(role.id in moderator_role_ids for role in interaction.user.roles)
-        is_admin = interaction.user.guild_permissions.administrator
-        
-        if not (is_ticket_creator or is_moderator or is_admin):
-            await interaction.response.send_message(
-                "❌ You don't have permission to close this ticket.",
-                ephemeral=True
-            )
-            return
-        
-        # Confirm close
-        confirm_embed = discord.Embed(
-            title="⚠️ Close Ticket?",
-            description="Are you sure you want to close this ticket? This action cannot be undone.",
-            color=discord.Color.orange()
-        )
-        
-        await interaction.response.send_message(
-            embed=confirm_embed,
-            view=ConfirmCloseView(interaction.channel),
-            ephemeral=True
-        )
-
-
-class ConfirmCloseView(discord.ui.View):
-    """Confirmation view for closing ticket"""
-    
-    def __init__(self, channel: discord.TextChannel):
-        super().__init__(timeout=None)  # No timeout - persistent buttons
-        self.channel = channel
-    
-    @discord.ui.button(label="Yes, Close Ticket", style=discord.ButtonStyle.red)
-    async def confirm_close(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Confirm and close the ticket"""
-        try:
-            await interaction.response.defer()
-            
-            config = get_config()
-            transcript_channel_id = config['channels']['transcript_channel_id']
-            
-            print(f"[TICKET] Starting ticket close for: {self.channel.name}")
-            
-            # Generate transcript
-            transcript_lines = ["# Ticket Transcript\n"]
-            try:
-                async for message in self.channel.history(limit=None, oldest_first=True):
-                    created = discord.utils.format_dt(message.created_at, "f")
-                    if message.edited_at:
-                        edited = discord.utils.format_dt(message.edited_at, "f")
-                        transcript_lines.append(
-                            f"**{message.author}** ({created}) - *Edited: {edited}*\n{message.clean_content}\n"
-                        )
-                    else:
-                        transcript_lines.append(f"**{message.author}** ({created})\n{message.clean_content}\n")
-            except Exception as e:
-                print(f"[TICKET] Error reading message history: {e}")
-                transcript_lines.append(f"\n*Error reading message history: {e}*")
-            
-            transcript_lines.append(f"\n*Generated at {discord.utils.format_dt(datetime.now(), 'F')}*")
-            transcript_text = "\n".join(transcript_lines)
-            
-            # Save transcript
-            transcript_path = f"{self.channel.id}.md"
-            try:
-                with open(transcript_path, 'w', encoding='utf-8') as f:
-                    f.write(transcript_text)
-                print(f"[TICKET] Transcript saved to {transcript_path}")
-            except Exception as e:
-                print(f"[TICKET] Error saving transcript: {e}")
-            
-            # Send to transcript channel
-            try:
-                transcript_channel = interaction.client.get_channel(transcript_channel_id)
-                if transcript_channel:
-                    with open(transcript_path, 'rb') as f:
-                        await transcript_channel.send(
-                            f"Transcript for {self.channel.mention}",
-                            file=discord.File(f, f"{self.channel.name}_transcript.md")
-                        )
-                    print(f"[TICKET] Transcript sent to channel {transcript_channel_id}")
-            except Exception as e:
-                print(f"[TICKET] Error sending transcript: {e}")
-            
-            # Clean up
-            try:
-                if os.path.exists(transcript_path):
-                    os.remove(transcript_path)
-                    print(f"[TICKET] Transcript file cleaned up")
-            except Exception as e:
-                print(f"[TICKET] Error cleaning up transcript: {e}")
-            
-            # Send confirmation before deleting
-            try:
-                await interaction.followup.send("✅ Ticket closed and transcript saved.", ephemeral=True)
-                print(f"[TICKET] Confirmation sent to user")
-            except Exception as e:
-                print(f"[TICKET] Error sending confirmation: {e}")
-            
-            # Delete channel
-            try:
-                await self.channel.delete(reason="Ticket closed")
-                print(f"[TICKET] Channel deleted successfully")
-            except Exception as e:
-                print(f"[TICKET] Error deleting channel: {e}")
-                try:
-                    await interaction.followup.send(f"⚠️ Ticket close failed: {e}", ephemeral=True)
-                except:
-                    pass
-            
-        except Exception as e:
-            print(f"[TICKET] Fatal error in confirm_close: {e}")
-            try:
-                await interaction.followup.send(f"❌ Critical error: {e}", ephemeral=True)
-            except:
-                print(f"[TICKET] Could not send error message to user")
-    
-    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.gray)
-    async def cancel_close(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Cancel the close operation"""
-        await interaction.response.send_message("❌ Ticket close cancelled.", ephemeral=True)
-
-
 class TicketSystem(commands.Cog):
-    """Ticket system cog"""
+    """Main ticket system cog"""
     
     def __init__(self, bot: commands.Bot):
         self.bot = bot
     
     @commands.Cog.listener()
     async def on_ready(self):
-        """Re-register persistent views on bot startup"""
-        print("✓ Ticket system loaded successfully")
-        
-        # Re-register persistent views so buttons work after restart
-        self.bot.add_view(TicketCreateView())
-        self.bot.add_view(TicketCloseView())
-        
-        # Create a temporary ConfirmCloseView with a dummy channel to register the pattern
-        # This ensures the buttons are registered even if no channels exist yet
-        try:
-            dummy_channel = None
-            self.bot.add_view(ConfirmCloseView(dummy_channel))
-        except:
-            pass
-        
-        print("✓ Ticket system views re-registered (buttons will work)")
+        """Re-register views when bot starts"""
+        print("✓ Ticket system loaded")
+        self.bot.add_view(CreateTicketButton())
+        print("✓ Ticket views registered")
     
-    @app_commands.command(name="setup_tickets", description="Setup the ticket system in current channel")
-    @app_commands.default_permissions(administrator=True)
+    @app_commands.command(
+        name="setup_ticket_panel",
+        description="Setup the ticket creation panel (Admin only)"
+    )
     @app_commands.checks.has_permissions(administrator=True)
-    async def setup_tickets(self, interaction: discord.Interaction):
-        """Setup ticket creation panel"""
-        config = get_config()
-        ticket_channel_id = config['channels']['ticket_channel_id']
-        
-        if interaction.channel.id != ticket_channel_id:
-            await interaction.response.send_message(
-                f"⚠️ This command should be used in the designated ticket channel.",
-                ephemeral=True
-            )
-            return
-        
-        embed = discord.Embed(
-            title="📋 Support Ticket System",
-            description="Click the button below to create a support ticket. Our team will assist you as soon as possible.",
-            color=discord.Color.blue()
-        )
-        embed.add_field(
-            name="📝 What is a Ticket?",
-            value="A ticket is a private channel where you can discuss your issue with our support team.",
-            inline=False
-        )
-        embed.add_field(
-            name="⏱️ Response Time",
-            value="Our team typically responds within 1-2 hours during business hours.",
-            inline=False
-        )
-        
-        await interaction.response.send_message(
-            embed=embed,
-            view=TicketCreateView(),
-            ephemeral=False
-        )
-        
-        await interaction.followup.send(
-            "✅ Ticket system setup complete!",
-            ephemeral=True
-        )
-    
-    @app_commands.command(name="close", description="Close the current ticket")
-    async def close_ticket_command(self, interaction: discord.Interaction):
-        """Close the current ticket via command"""
-        # Check if this is a ticket channel
-        if not interaction.channel.name.startswith("ticket-"):
-            await interaction.response.send_message(
-                "❌ This command can only be used in ticket channels.",
-                ephemeral=True
-            )
-            return
-        
-        config = get_config()
-        moderator_role_ids = config['roles']['moderator_role_ids']
-        
-        # Check if user has permission to close
-        is_ticket_creator = interaction.user == interaction.channel.owner
-        is_moderator = any(role.id in moderator_role_ids for role in interaction.user.roles)
-        is_admin = interaction.user.guild_permissions.administrator
-        
-        if not (is_ticket_creator or is_moderator or is_admin):
-            await interaction.response.send_message(
-                "❌ You don't have permission to close this ticket.",
-                ephemeral=True
-            )
-            return
-        
-        # Respond immediately to prevent timeout
-        await interaction.response.defer()
-        
+    async def setup_panel(self, interaction: discord.Interaction):
+        """Setup ticket creation panel in current channel"""
         try:
-            print(f"[TICKET] Closing ticket: {interaction.channel.name}")
-            
-            # Send confirmation message
-            await interaction.followup.send(
-                f"✅ Closing ticket **{interaction.channel.name}**...",
-                ephemeral=True
+            embed = discord.Embed(
+                title="🎟️ Support Ticket System",
+                description="Click the button below to create a support ticket.\n\nOur support team will assist you as soon as possible.",
+                color=discord.Color.blue()
+            )
+            embed.add_field(
+                name="📝 How It Works",
+                value="1. Click the **Create Ticket** button\n2. Fill out the form with your details\n3. A private channel will be created\n4. Use `/close` to close the ticket when done",
+                inline=False
+            )
+            embed.add_field(
+                name="⏱️ Response Time",
+                value="We typically respond within 1-2 hours during business hours",
+                inline=False
             )
             
-            # Delete the channel
-            await interaction.channel.delete(reason=f"Ticket closed by {interaction.user}")
-            print(f"[TICKET] Channel deleted successfully")
+            await interaction.response.send_message(
+                embed=embed,
+                view=CreateTicketButton()
+            )
+            
+            await interaction.followup.send("✅ Ticket panel setup complete!", ephemeral=True)
+            print(f"[TICKET] Setup panel command executed by {interaction.user}")
             
         except Exception as e:
-            print(f"[TICKET] ERROR: {e}")
+            print(f"[TICKET] Error in setup_panel: {e}")
+            await interaction.response.send_message(f"❌ Error: {str(e)[:100]}", ephemeral=True)
+    
+    @app_commands.command(
+        name="close",
+        description="Close the current ticket"
+    )
+    async def close_ticket(self, interaction: discord.Interaction):
+        """Close a ticket channel"""
+        # Verify this is a ticket channel
+        if not interaction.channel.name.startswith("ticket-"):
+            await interaction.response.send_message(
+                "❌ This command can only be used in ticket channels",
+                ephemeral=True
+            )
+            return
+        
+        try:
+            config = get_config()
+            moderator_ids = config.get('roles', {}).get('moderator_role_ids', [])
+            
+            # Check permissions
+            is_creator = interaction.user == interaction.channel.owner
+            is_moderator = any(role.id in moderator_ids for role in interaction.user.roles)
+            is_admin = interaction.user.guild_permissions.administrator
+            
+            if not (is_creator or is_moderator or is_admin):
+                await interaction.response.send_message(
+                    "❌ You don't have permission to close this ticket",
+                    ephemeral=True
+                )
+                return
+            
+            # Respond immediately
+            await interaction.response.defer(ephemeral=True)
+            
+            print(f"[TICKET] Closing ticket: {interaction.channel.name}")
+            
+            # Send closing message
+            closing_embed = discord.Embed(
+                title="🔒 Ticket Closed",
+                description=f"This ticket was closed by {interaction.user.mention}",
+                color=discord.Color.red(),
+                timestamp=datetime.now()
+            )
+            await interaction.channel.send(embed=closing_embed)
+            
+            # Delete channel
+            await interaction.channel.delete(reason=f"Ticket closed by {interaction.user}")
+            
+            print(f"[TICKET] Ticket deleted successfully")
+            
+        except discord.Forbidden:
+            await interaction.response.send_message(
+                "❌ I don't have permission to delete this channel",
+                ephemeral=True
+            )
+        except Exception as e:
+            print(f"[TICKET] Error closing ticket: {e}")
             try:
-                await interaction.followup.send(f"❌ Error: {str(e)[:100]}", ephemeral=True)
+                await interaction.followup.send(
+                    f"❌ Error closing ticket: {str(e)[:100]}",
+                    ephemeral=True
+                )
             except:
                 pass
 
 
 async def setup(bot: commands.Bot):
+    """Load the ticket system cog"""
     await bot.add_cog(TicketSystem(bot))
+    print("[TICKET] Ticket system cog loaded")
