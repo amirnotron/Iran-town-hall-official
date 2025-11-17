@@ -236,53 +236,87 @@ class ConfirmCloseView(discord.ui.View):
     @discord.ui.button(label="Yes, Close Ticket", style=discord.ButtonStyle.red)
     async def confirm_close(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Confirm and close the ticket"""
-        await interaction.response.defer()
-        
-        config = get_config()
-        transcript_channel_id = config['channels']['transcript_channel_id']
-        
         try:
+            await interaction.response.defer()
+            
+            config = get_config()
+            transcript_channel_id = config['channels']['transcript_channel_id']
+            
+            print(f"[TICKET] Starting ticket close for: {self.channel.name}")
+            
             # Generate transcript
             transcript_lines = ["# Ticket Transcript\n"]
-            async for message in self.channel.history(limit=None, oldest_first=True):
-                created = discord.utils.format_dt(message.created_at, "f")
-                if message.edited_at:
-                    edited = discord.utils.format_dt(message.edited_at, "f")
-                    transcript_lines.append(
-                        f"**{message.author}** ({created}) - *Edited: {edited}*\n{message.clean_content}\n"
-                    )
-                else:
-                    transcript_lines.append(f"**{message.author}** ({created})\n{message.clean_content}\n")
+            try:
+                async for message in self.channel.history(limit=None, oldest_first=True):
+                    created = discord.utils.format_dt(message.created_at, "f")
+                    if message.edited_at:
+                        edited = discord.utils.format_dt(message.edited_at, "f")
+                        transcript_lines.append(
+                            f"**{message.author}** ({created}) - *Edited: {edited}*\n{message.clean_content}\n"
+                        )
+                    else:
+                        transcript_lines.append(f"**{message.author}** ({created})\n{message.clean_content}\n")
+            except Exception as e:
+                print(f"[TICKET] Error reading message history: {e}")
+                transcript_lines.append(f"\n*Error reading message history: {e}*")
             
             transcript_lines.append(f"\n*Generated at {discord.utils.format_dt(datetime.now(), 'F')}*")
             transcript_text = "\n".join(transcript_lines)
             
             # Save transcript
             transcript_path = f"{self.channel.id}.md"
-            with open(transcript_path, 'w', encoding='utf-8') as f:
-                f.write(transcript_text)
+            try:
+                with open(transcript_path, 'w', encoding='utf-8') as f:
+                    f.write(transcript_text)
+                print(f"[TICKET] Transcript saved to {transcript_path}")
+            except Exception as e:
+                print(f"[TICKET] Error saving transcript: {e}")
             
             # Send to transcript channel
-            transcript_channel = interaction.client.get_channel(transcript_channel_id)
-            if transcript_channel:
-                with open(transcript_path, 'rb') as f:
-                    await transcript_channel.send(
-                        f"Transcript for {self.channel.mention}",
-                        file=discord.File(f, f"{self.channel.name}_transcript.md")
-                    )
+            try:
+                transcript_channel = interaction.client.get_channel(transcript_channel_id)
+                if transcript_channel:
+                    with open(transcript_path, 'rb') as f:
+                        await transcript_channel.send(
+                            f"Transcript for {self.channel.mention}",
+                            file=discord.File(f, f"{self.channel.name}_transcript.md")
+                        )
+                    print(f"[TICKET] Transcript sent to channel {transcript_channel_id}")
+            except Exception as e:
+                print(f"[TICKET] Error sending transcript: {e}")
             
             # Clean up
-            os.remove(transcript_path)
+            try:
+                if os.path.exists(transcript_path):
+                    os.remove(transcript_path)
+                    print(f"[TICKET] Transcript file cleaned up")
+            except Exception as e:
+                print(f"[TICKET] Error cleaning up transcript: {e}")
             
             # Send confirmation before deleting
-            await interaction.followup.send("✅ Ticket closed and transcript saved.", ephemeral=True)
+            try:
+                await interaction.followup.send("✅ Ticket closed and transcript saved.", ephemeral=True)
+                print(f"[TICKET] Confirmation sent to user")
+            except Exception as e:
+                print(f"[TICKET] Error sending confirmation: {e}")
             
             # Delete channel
-            await self.channel.delete(reason="Ticket closed")
+            try:
+                await self.channel.delete(reason="Ticket closed")
+                print(f"[TICKET] Channel deleted successfully")
+            except Exception as e:
+                print(f"[TICKET] Error deleting channel: {e}")
+                try:
+                    await interaction.followup.send(f"⚠️ Ticket close failed: {e}", ephemeral=True)
+                except:
+                    pass
             
         except Exception as e:
-            print(f"Error closing ticket: {e}")
-            await interaction.followup.send(f"❌ Error closing ticket: {e}", ephemeral=True)
+            print(f"[TICKET] Fatal error in confirm_close: {e}")
+            try:
+                await interaction.followup.send(f"❌ Critical error: {e}", ephemeral=True)
+            except:
+                print(f"[TICKET] Could not send error message to user")
     
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.gray)
     async def cancel_close(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -304,6 +338,14 @@ class TicketSystem(commands.Cog):
         # Re-register persistent views so buttons work after restart
         self.bot.add_view(TicketCreateView())
         self.bot.add_view(TicketCloseView())
+        
+        # Create a temporary ConfirmCloseView with a dummy channel to register the pattern
+        # This ensures the buttons are registered even if no channels exist yet
+        try:
+            dummy_channel = None
+            self.bot.add_view(ConfirmCloseView(dummy_channel))
+        except:
+            pass
         
         print("✓ Ticket system views re-registered (buttons will work)")
     
