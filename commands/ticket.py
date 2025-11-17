@@ -230,12 +230,14 @@ class ConfirmCloseView(discord.ui.View):
     """Confirmation view for closing ticket"""
     
     def __init__(self, channel: discord.TextChannel):
-        super().__init__(timeout=60)
+        super().__init__(timeout=None)  # No timeout - persistent buttons
         self.channel = channel
     
     @discord.ui.button(label="Yes, Close Ticket", style=discord.ButtonStyle.red)
     async def confirm_close(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Confirm and close the ticket"""
+        await interaction.response.defer()
+        
         config = get_config()
         transcript_channel_id = config['channels']['transcript_channel_id']
         
@@ -272,17 +274,20 @@ class ConfirmCloseView(discord.ui.View):
             # Clean up
             os.remove(transcript_path)
             
+            # Send confirmation before deleting
+            await interaction.followup.send("✅ Ticket closed and transcript saved.", ephemeral=True)
+            
             # Delete channel
-            await interaction.response.send_message("✅ Ticket closed and transcript saved.", ephemeral=True)
             await self.channel.delete(reason="Ticket closed")
             
         except Exception as e:
-            await interaction.response.send_message(f"❌ Error closing ticket: {e}", ephemeral=True)
+            print(f"Error closing ticket: {e}")
+            await interaction.followup.send(f"❌ Error closing ticket: {e}", ephemeral=True)
     
     @discord.ui.button(label="Cancel", style=discord.ButtonStyle.gray)
     async def cancel_close(self, interaction: discord.Interaction, button: discord.ui.Button):
         """Cancel the close operation"""
-        await interaction.response.defer()
+        await interaction.response.send_message("❌ Ticket close cancelled.", ephemeral=True)
 
 
 class TicketSystem(commands.Cog):
