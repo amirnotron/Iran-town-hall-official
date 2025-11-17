@@ -390,6 +390,83 @@ class TicketSystem(commands.Cog):
             "✅ Ticket system setup complete!",
             ephemeral=True
         )
+    
+    @app_commands.command(name="close", description="Close the current ticket")
+    async def close_ticket_command(self, interaction: discord.Interaction):
+        """Close the current ticket via command"""
+        # Check if this is a ticket channel
+        if not interaction.channel.name.startswith("ticket-"):
+            await interaction.response.send_message(
+                "❌ This command can only be used in ticket channels.",
+                ephemeral=True
+            )
+            return
+        
+        config = get_config()
+        moderator_role_ids = config['roles']['moderator_role_ids']
+        
+        # Check if user has permission to close
+        is_ticket_creator = interaction.user == interaction.channel.owner
+        is_moderator = any(role.id in moderator_role_ids for role in interaction.user.roles)
+        is_admin = interaction.user.guild_permissions.administrator
+        
+        if not (is_ticket_creator or is_moderator or is_admin):
+            await interaction.response.send_message(
+                "❌ You don't have permission to close this ticket.",
+                ephemeral=True
+            )
+            return
+        
+        await interaction.response.defer()
+        
+        transcript_channel_id = config['channels']['transcript_channel_id']
+        
+        try:
+            print(f"[TICKET] Closing ticket via command: {interaction.channel.name}")
+            
+            # Generate transcript
+            transcript_lines = ["# Ticket Transcript\n"]
+            async for message in interaction.channel.history(limit=None, oldest_first=True):
+                created = discord.utils.format_dt(message.created_at, "f")
+                if message.edited_at:
+                    edited = discord.utils.format_dt(message.edited_at, "f")
+                    transcript_lines.append(
+                        f"**{message.author}** ({created}) - *Edited: {edited}*\n{message.clean_content}\n"
+                    )
+                else:
+                    transcript_lines.append(f"**{message.author}** ({created})\n{message.clean_content}\n")
+            
+            transcript_lines.append(f"\n*Closed by {interaction.user.mention}*")
+            transcript_lines.append(f"*Generated at {discord.utils.format_dt(datetime.now(), 'F')}*")
+            transcript_text = "\n".join(transcript_lines)
+            
+            # Save transcript
+            transcript_path = f"{interaction.channel.id}.md"
+            with open(transcript_path, 'w', encoding='utf-8') as f:
+                f.write(transcript_text)
+            
+            # Send to transcript channel
+            transcript_channel = interaction.client.get_channel(transcript_channel_id)
+            if transcript_channel:
+                with open(transcript_path, 'rb') as f:
+                    await transcript_channel.send(
+                        f"Transcript for {interaction.channel.mention}",
+                        file=discord.File(f, f"{interaction.channel.name}_transcript.md")
+                    )
+            
+            # Clean up
+            if os.path.exists(transcript_path):
+                os.remove(transcript_path)
+            
+            # Send confirmation
+            await interaction.followup.send("✅ Ticket closed and transcript saved. Channel will be deleted.", ephemeral=True)
+            
+            # Delete channel
+            await interaction.channel.delete(reason=f"Ticket closed by {interaction.user}")
+            
+        except Exception as e:
+            print(f"[TICKET] Error closing ticket: {e}")
+            await interaction.followup.send(f"❌ Error closing ticket: {e}", ephemeral=True)
 
 
 async def setup(bot: commands.Bot):
