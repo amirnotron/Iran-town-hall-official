@@ -417,56 +417,80 @@ class TicketSystem(commands.Cog):
             )
             return
         
+        # Respond immediately to prevent timeout
         await interaction.response.defer()
-        
-        transcript_channel_id = config['channels']['transcript_channel_id']
         
         try:
             print(f"[TICKET] Closing ticket via command: {interaction.channel.name}")
             
-            # Generate transcript
-            transcript_lines = ["# Ticket Transcript\n"]
-            async for message in interaction.channel.history(limit=None, oldest_first=True):
-                created = discord.utils.format_dt(message.created_at, "f")
-                if message.edited_at:
-                    edited = discord.utils.format_dt(message.edited_at, "f")
-                    transcript_lines.append(
-                        f"**{message.author}** ({created}) - *Edited: {edited}*\n{message.clean_content}\n"
-                    )
-                else:
-                    transcript_lines.append(f"**{message.author}** ({created})\n{message.clean_content}\n")
-            
-            transcript_lines.append(f"\n*Closed by {interaction.user.mention}*")
-            transcript_lines.append(f"*Generated at {discord.utils.format_dt(datetime.now(), 'F')}*")
-            transcript_text = "\n".join(transcript_lines)
-            
-            # Save transcript
-            transcript_path = f"{interaction.channel.id}.md"
-            with open(transcript_path, 'w', encoding='utf-8') as f:
-                f.write(transcript_text)
-            
-            # Send to transcript channel
+            transcript_channel_id = config['channels']['transcript_channel_id']
             transcript_channel = interaction.client.get_channel(transcript_channel_id)
-            if transcript_channel:
-                with open(transcript_path, 'rb') as f:
-                    await transcript_channel.send(
-                        f"Transcript for {interaction.channel.mention}",
-                        file=discord.File(f, f"{interaction.channel.name}_transcript.md")
-                    )
             
-            # Clean up
-            if os.path.exists(transcript_path):
-                os.remove(transcript_path)
+            if not transcript_channel:
+                print(f"[TICKET] Transcript channel not found: {transcript_channel_id}")
             
-            # Send confirmation
-            await interaction.followup.send("✅ Ticket closed and transcript saved. Channel will be deleted.", ephemeral=True)
+            # Create simple transcript (faster than reading all messages)
+            print(f"[TICKET] Reading message history...")
+            transcript_lines = [
+                "# Ticket Transcript\n",
+                f"**Channel:** {interaction.channel.name}\n",
+                f"**Closed by:** {interaction.user.mention}\n",
+                f"**Closed at:** {discord.utils.format_dt(datetime.now(), 'F')}\n",
+                "\n## Messages\n"
+            ]
             
-            # Delete channel
+            message_count = 0
+            async for message in interaction.channel.history(limit=100, oldest_first=True):  # Limit to last 100 messages for speed
+                message_count += 1
+                created = discord.utils.format_dt(message.created_at, "f")
+                transcript_lines.append(f"**{message.author}** ({created})\n{message.clean_content}\n")
+            
+            print(f"[TICKET] Processed {message_count} messages")
+            
+            transcript_lines.append(f"\n*Total messages: {message_count}*")
+            transcript_text = "".join(transcript_lines)
+            
+            # Save and send transcript quickly
+            transcript_path = f"{interaction.channel.id}.md"
+            
+            try:
+                with open(transcript_path, 'w', encoding='utf-8') as f:
+                    f.write(transcript_text)
+                
+                if transcript_channel:
+                    with open(transcript_path, 'rb') as f:
+                        await transcript_channel.send(
+                            f"📋 Ticket Transcript: {interaction.channel.name}",
+                            file=discord.File(f, f"{interaction.channel.name}_transcript.md")
+                        )
+                    print(f"[TICKET] Transcript sent to channel")
+                
+                if os.path.exists(transcript_path):
+                    os.remove(transcript_path)
+                    print(f"[TICKET] Transcript file cleaned up")
+                    
+            except Exception as e:
+                print(f"[TICKET] Error with transcript: {e}")
+            
+            # Send confirmation message
+            await interaction.followup.send(
+                f"✅ Ticket **{interaction.channel.name}** is being closed...",
+                ephemeral=True
+            )
+            print(f"[TICKET] Confirmation sent, deleting channel...")
+            
+            # Delete the channel
             await interaction.channel.delete(reason=f"Ticket closed by {interaction.user}")
+            print(f"[TICKET] Channel deleted successfully")
             
         except Exception as e:
-            print(f"[TICKET] Error closing ticket: {e}")
-            await interaction.followup.send(f"❌ Error closing ticket: {e}", ephemeral=True)
+            print(f"[TICKET] ERROR in close_ticket_command: {e}")
+            import traceback
+            traceback.print_exc()
+            try:
+                await interaction.followup.send(f"❌ Error: {str(e)[:100]}", ephemeral=True)
+            except:
+                pass
 
 
 async def setup(bot: commands.Bot):
